@@ -10,7 +10,7 @@ install_folders=(
   razordot/brew
   zsh
   # claude
-  copilot
+  # copilot
   core
   creative
   # crypto
@@ -21,6 +21,7 @@ install_folders=(
   formal
   generic
   generic-cask
+  grok
   microsoft-office
   git
   iterm
