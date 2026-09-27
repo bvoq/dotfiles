@@ -4,6 +4,13 @@ set nocp " don't need arcane vi support
 let mapleader = " "
 let maplocalleader = " "
 
+" [company, model]. ['github', 'gpt-4o'] loads Copilot, which starts node and
+" asks macOS for the login-keychain item "copilot-language-server".
+" ['xai', 'grok-4.7'] points Avante at api.x.ai with XAI_API_KEY.
+" ['', ''] skips the provider.
+let g:ai_driver = ['', '']
+let s:ai_company = get(g:ai_driver, 0, '')
+
 " ==============================================================================
 " Vim-Plug plugin manager
 " ==============================================================================
@@ -46,7 +53,10 @@ Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 Plug 'MeanderingProgrammer/render-markdown.nvim'
 Plug 'HakonHarnes/img-clip.nvim'
-Plug 'zbirenbaum/copilot.lua'
+if s:ai_company ==# 'github'
+  Plug 'zbirenbaum/copilot.lua'
+  Plug 'github/copilot.vim'
+endif
 
 " Avante
 if executable('cargo')
@@ -59,9 +69,6 @@ Plug 'nvim-telescope/telescope-fzf-native.nvim', { 'do': 'make' }
 Plug 'jvgrootveld/telescope-zoxide'
 
 
-
-" copilot
-Plug 'github/copilot.vim'
 
 """ Plugins I stopped using
 "Plug 'neomake/neomake' " nvim-lspconfig takes care of most things I cared about.
@@ -104,12 +111,17 @@ endif
 " Manually authenticate using :Copilot auth
 " Verify using :Copilot auth info
 
-lua << EOF
-require('copilot').setup({
-  panel = { enabled = true },
-  suggestion = { enabled = true },
-})
-EOF
+if s:ai_company ==# 'github'
+  lua << EOF
+  local ok, copilot = pcall(require, 'copilot')
+  if ok then
+    copilot.setup({
+      panel = { enabled = true },
+      suggestion = { enabled = true },
+    })
+  end
+  EOF
+endif
 
 " ==============================================================================
 " Avante
@@ -117,15 +129,33 @@ EOF
 
 if exists('g:plugs') && has_key(g:plugs, 'avante.nvim') && isdirectory(g:plugs['avante.nvim'].dir)
   lua << EOF
-  -- Compatibility shim for Avante Copilot auth: https://github.com/yetone/avante.nvim/issues/3121
-  local copilot_config_dir = vim.env.XDG_CONFIG_HOME or vim.fn.expand('~/.config')
-  local copilot_dir = vim.fs.joinpath(copilot_config_dir, 'github-copilot')
-  local auth_db = vim.fs.joinpath(copilot_dir, 'auth.db')
-  local apps_json = vim.fs.joinpath(copilot_dir, 'apps.json')
-  if vim.uv.fs_stat(auth_db) and not vim.uv.fs_stat(apps_json) and vim.fn.executable('sqlite3') == 1 then
-    local token = vim.trim(vim.fn.system({ 'sqlite3', auth_db, 'SELECT CAST(token_ciphertext AS TEXT) FROM oauth_tokens LIMIT 1;' }))
-    if vim.v.shell_error == 0 and token ~= '' then
-      vim.fn.writefile({ vim.json.encode({ ['github.com'] = { oauth_token = token } }) }, apps_json)
+  local ai_driver = vim.g.ai_driver or {}
+  local ai_company = ai_driver[1] or ''
+  local ai_model = ai_driver[2] or ''
+  local company_provider = {
+    github = 'copilot',
+    anthropic = 'claude',
+    openai = 'openai',
+    google = 'gemini',
+    perplexity = 'perplexity',
+    xai = 'xai',
+  }
+  local provider_module = {
+    xai = 'openai',
+  }
+  local ai_provider = company_provider[ai_company]
+
+  if ai_company == 'github' then
+    -- Compatibility shim for Avante Copilot auth: https://github.com/yetone/avante.nvim/issues/3121
+    local copilot_config_dir = vim.env.XDG_CONFIG_HOME or vim.fn.expand('~/.config')
+    local copilot_dir = vim.fs.joinpath(copilot_config_dir, 'github-copilot')
+    local auth_db = vim.fs.joinpath(copilot_dir, 'auth.db')
+    local apps_json = vim.fs.joinpath(copilot_dir, 'apps.json')
+    if vim.uv.fs_stat(auth_db) and not vim.uv.fs_stat(apps_json) and vim.fn.executable('sqlite3') == 1 then
+      local token = vim.trim(vim.fn.system({ 'sqlite3', auth_db, 'SELECT CAST(token_ciphertext AS TEXT) FROM oauth_tokens LIMIT 1;' }))
+      if vim.v.shell_error == 0 and token ~= '' then
+        vim.fn.writefile({ vim.json.encode({ ['github.com'] = { oauth_token = token } }) }, apps_json)
+      end
     end
   end
 
@@ -195,10 +225,23 @@ if exists('g:plugs') && has_key(g:plugs, 'avante.nvim') && isdirectory(g:plugs['
     AvanteSidebar.horizontal_stack_fixed = true
   end
 
+  local provider_opts = { model = ai_model }
+  if ai_provider == 'xai' then
+    provider_opts = {
+      __inherited_from = 'openai',
+      endpoint = 'https://api.x.ai/v1',
+      model = ai_model,
+      api_key_name = 'XAI_API_KEY',
+    }
+  end
+
+  local module_name = provider_module[ai_provider] or ai_provider
+  if ai_provider and pcall(require, 'avante.providers.' .. module_name) then
   require('avante').setup({
-      provider = 'copilot',
-      -- provider = 'claude',
-      -- provider = 'perplexity',
+      provider = ai_provider,
+      providers = {
+        [ai_provider] = provider_opts,
+      },
       windows = {
         position = avante_position(),
         height = 40,
@@ -225,6 +268,7 @@ if exists('g:plugs') && has_key(g:plugs, 'avante.nvim') && isdirectory(g:plugs['
         },
       },
   })
+  end
 EOF
 endif
 
@@ -639,9 +683,10 @@ else
   set rtp+=/usr/local/opt/fzf
 endif
 
-" Copilot
-imap <silent> <C-j> <Plug>(copilot-next)
-imap <silent> <C-k> <Plug>(copilot-previous)
+if s:ai_company ==# 'github'
+  imap <silent> <C-j> <Plug>(copilot-next)
+  imap <silent> <C-k> <Plug>(copilot-previous)
+endif
 
 """ Custom commands
 command! ErrorRegex execute "/\\v\([a-zA-Z_-]\)\@<!\(error\|missing\|unknown\|except\|not found\|fail\|unavailable\|issue\|problem\|fault\|invalid\|code 1\|crash(\\%(!lytics))\)"

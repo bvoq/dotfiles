@@ -573,6 +573,99 @@ ensure_developer_tools_installed() {
   done
 }
 
+# --verbose names each stage a package defines and times it. --slowverbose also
+# waitconfirms before that stage and prints the time after it. Both modes rank
+# the times so far before phase 5, lowest to highest. A no-op phase stays quiet.
+_razordot_run_phase() {
+  local phase="$1" install_script="$2" package stub defined start end elapsed
+  package="${install_script:h}"
+
+  builtin eval "$phase() { :; }"
+  stub="$(builtin whence -f "$phase")"
+  source "$install_script"
+  defined="$(builtin whence -f "$phase")"
+
+  if [[ "$defined" == "$stub" ]]; then
+    "$phase"
+    return
+  fi
+
+  if ((RAZORDOT_VERBOSE || RAZORDOT_SLOWVERBOSE)); then
+    echo "razordot: stage $phase for $package"
+  fi
+  if ((RAZORDOT_SLOWVERBOSE)); then
+    waitconfirm
+  fi
+
+  if ((RAZORDOT_VERBOSE || RAZORDOT_SLOWVERBOSE)); then
+    zmodload zsh/datetime
+    start=$EPOCHREALTIME
+    "$phase"
+    end=$EPOCHREALTIME
+    # $((0)) has a non-zero status, which set -e would treat as a failure.
+    elapsed=$((end - start)) || true
+    RAZORDOT_PHASE_TIMES+=("$(LC_ALL=C printf '%.6f %s for %s' "$elapsed" "$phase" "$package")")
+    if ((RAZORDOT_SLOWVERBOSE)); then
+      LC_ALL=C printf 'razordot: %s for %s took %.3fs\n' "$phase" "$package" "$elapsed"
+    fi
+  else
+    "$phase"
+  fi
+}
+
+# Prints timed phases from lowest to highest so the slowest are last.
+_razordot_report_phase_times() {
+  ((RAZORDOT_VERBOSE || RAZORDOT_SLOWVERBOSE)) || return 0
+  ((${#RAZORDOT_PHASE_TIMES[@]})) || return 0
+
+  local line seconds label
+  echo "razordot: phase times, lowest to highest:"
+  printf '%s\n' "${RAZORDOT_PHASE_TIMES[@]}" | LC_ALL=C sort -n | while IFS= read -r line; do
+    seconds="${line%% *}"
+    label="${line#* }"
+    LC_ALL=C printf 'razordot: %8.3fs  %s\n' "$seconds" "$label"
+  done
+}
+
+# Accepts --verbose, --slowverbose, and --install <folder>, in any order.
+_razordot_parse_args() {
+  RAZORDOT_VERBOSE=0
+  RAZORDOT_SLOWVERBOSE=0
+  RAZORDOT_PHASE_TIMES=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --verbose)
+        RAZORDOT_VERBOSE=1
+        shift
+        ;;
+      --slowverbose)
+        RAZORDOT_VERBOSE=1
+        RAZORDOT_SLOWVERBOSE=1
+        shift
+        ;;
+      --install)
+        if [[ -z "${2:-}" || "$2" == --* ]]; then
+          echo "Usage: $RAZORDOT_SCRIPT_NAME [--verbose|--slowverbose] [--install <folder>]"
+          exit 1
+        fi
+        folder="${2%/}"
+        if [[ ! -f "$folder/install.zsh" ]]; then
+          echo "Usage: $RAZORDOT_SCRIPT_NAME --install <folder>  (no '$folder/install.zsh' found)"
+          exit 1
+        fi
+        install_folders=("$folder")
+        unset folder
+        RAZORDOT_SINGLE_FOLDER=1
+        shift 2
+        ;;
+      *)
+        echo "Usage: $RAZORDOT_SCRIPT_NAME [--verbose|--slowverbose] [--install <folder>]"
+        exit 1
+        ;;
+    esac
+  done
+}
+
 ################
 # Run RAZORDOT #
 ################
@@ -583,17 +676,9 @@ assure_userlevel_zsh
 check_not_rosetta
 ensure_developer_tools_installed
 
-# Optional: `./razordot.zsh --install <folder>` runs only that single plugin folder (even for disabled folders).
-if [[ "$1" == "--install" ]]; then
-  folder="${2%/}"
-  if [[ ! -f "$folder/install.zsh" ]]; then
-    echo "Usage: ${0:t} --install <folder>  (no '$folder/install.zsh' found)"
-    exit 1
-  fi
-  install_folders=("$folder")
-  unset folder
-  RAZORDOT_SINGLE_FOLDER=1
-fi
+# Optional: `./razordot.zsh [--verbose|--slowverbose] [--install <folder>]`.
+# --install runs only that plugin folder, even when it is not listed above.
+_razordot_parse_args "$@"
 
 # Materialize any remote-repo entries (those containing a "/") into local folders.
 resolve_install_repos
@@ -606,9 +691,7 @@ install_scripts=(${^install_folders}/install.zsh)
 
 if isadminuser; then
   for install_script in "${install_scripts[@]}"; do
-    phase_0_bootstrap() { :; }
-    source "$install_script"
-    phase_0_bootstrap
+    _razordot_run_phase phase_0_bootstrap "$install_script"
   done
 fi
 
@@ -618,9 +701,7 @@ fi
 
 if isadminuser; then
   for install_script in "${install_scripts[@]}"; do
-    phase_1_admin_installs() { :; }
-    source "$install_script"
-    phase_1_admin_installs
+    _razordot_run_phase phase_1_admin_installs "$install_script"
   done
 else
   echo "Skipping admin-capable user installs."
@@ -633,9 +714,7 @@ fi
 echo "Installing other user-level tools."
 
 for install_script in "${install_scripts[@]}"; do
-  phase_2_user_installs() { :; }
-  source "$install_script"
-  phase_2_user_installs
+  _razordot_run_phase phase_2_user_installs "$install_script"
 done
 
 #########################################################
@@ -645,9 +724,7 @@ done
 echo "Linking dotfiles after installation, because some install script like to add stuff to .zshrc (evil right?!?)."
 
 for install_script in "${install_scripts[@]}"; do
-  phase_3_dotfiles() { :; }
-  source "$install_script"
-  phase_3_dotfiles
+  _razordot_run_phase phase_3_dotfiles "$install_script"
 done
 
 # Drop any dotfile links we used to create but no longer do (e.g. renamed or
@@ -696,19 +773,17 @@ source ~/.zshrc
 ####################################################################################
 
 for install_script in "${install_scripts[@]}"; do
-  phase_4_post_dotfiles() { :; }
-  source "$install_script"
-  phase_4_post_dotfiles
+  _razordot_run_phase phase_4_post_dotfiles "$install_script"
 done
 
 ##############################################################
 # Section 5: Heavy system changes, requires admin and reboot #
 ##############################################################
 
+_razordot_report_phase_times
+
 if isadminuser; then
   for install_script in "${install_scripts[@]}"; do
-    phase_5_system_changes() { :; }
-    source "$install_script"
-    phase_5_system_changes
+    _razordot_run_phase phase_5_system_changes "$install_script"
   done
 fi
