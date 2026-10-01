@@ -13,6 +13,9 @@ SPC . = open file
 Neat:
 SPC t l = rotate through line number settings, relative -> t -> relative -> nil
 
+Frame related:
+SPC q f = delete frame (for eg. when opening two emacs frames with e)
+
 Buffer related:
 SPC b n = :bn = C-x RIGHT = next user buffer (or new if none exists)
 SPC b p = :bp = C-x LEFT = previous user buffer (or new if none exists)

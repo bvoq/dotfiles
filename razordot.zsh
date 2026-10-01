@@ -41,6 +41,7 @@ install_folders=(
   ssh
   starship
   # tex
+  texmacs
   tmux
   tor
   kitty

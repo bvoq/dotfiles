@@ -46,5 +46,7 @@ phase_1_admin_installs() {
 
 phase_3_dotfiles() {
   link_dotfile "grok/.zshenv" "$HOME/.zshenv.d/zshenv_grok"
+  link_dotfile "grok/.zshrc" "$HOME/.zshrc.d/00_safe_config_grok.zsh"
   link_dotfile "grok/.zshrc.d/20_pre_compinit.zsh" "$HOME/.zshrc.d/20_pre_compinit_grok.zsh"
+  link_dotfile "grok/.zshrc.d/40_ishell_setup.zsh" "$HOME/.zshrc.d/40_ishell_setup_grok.zsh"
 }

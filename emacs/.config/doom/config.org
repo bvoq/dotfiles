@@ -143,7 +143,10 @@ M-x eval-region = run selected region as a command
 
 ;; (setq confirm-kill-emacs nil)
 ;; (setq initial-buffer-choice 'eshell) ;; and comment out doom-dashboard
+#+end_src
 
+** Telega.el
+#+begin_src elisp
 ;; Telegram
 (setq telega-server-libs-prefix "/opt/homebrew/opt/tdlib")
 (use-package! telega
@@ -155,6 +158,145 @@ M-x eval-region = run selected region as a command
                (expand-file-name "contrib" (file-name-directory (locate-library "telega"))))
   (require 'telega-alert)
   (telega-alert-mode 1))
+
+
+;; Telegram image downloader
+(defvar telega-download-photos-concurrency 4)
+(defvar telega-dl--buf nil)
+(defvar telega-dl--dir nil)
+(defvar telega-dl--inflight 0)
+(defvar telega-dl--pending nil)
+(defvar telega-dl--queued 0)
+(defvar telega-dl--skipped 0)
+
+(defun telega-dl--log (fmt &rest args)
+  (when (buffer-live-p telega-dl--buf)
+    (with-current-buffer telega-dl--buf
+      (let ((inhibit-read-only t))
+        (goto-char (point-max))
+        (insert (apply #'format fmt args) "\n")))))
+
+(defun telega-dl--highres-file (msg)
+  "Return the largest photo file plist on MSG, or nil."
+  (let ((sizes (telega--tl-get msg :content :photo :sizes))
+        (best nil)
+        (best-w 0))
+    (seq-doseq (size sizes)
+      (let ((w (or (plist-get size :width) 0)))
+        (when (> w best-w)
+          (setq best-w w
+                best (plist-get size :photo)))))
+    best))
+
+(defun telega-dl--dest (msg-id)
+  (expand-file-name (format "%s.jpg" msg-id) telega-dl--dir))
+
+(defun telega-dl--copy (msg-id src)
+  (let ((dest (telega-dl--dest msg-id)))
+    (when (and src (file-exists-p src) (not (file-exists-p dest)))
+      (copy-file src dest t)
+      (telega-dl--log "saved %s" (file-name-nondirectory dest)))))
+
+(defun telega-dl--on-downloaded (dfile msg-id)
+  (when (telega-file--downloaded-p dfile)
+    (telega-dl--copy msg-id (telega--tl-get dfile :local :path))
+    (cl-decf telega-dl--inflight)
+    (telega-dl--pump)))
+
+(defun telega-dl--pump ()
+  (while (and telega-dl--pending
+              (< telega-dl--inflight telega-download-photos-concurrency))
+    (cl-incf telega-dl--inflight)
+    (funcall (pop telega-dl--pending))))
+
+(defun telega-dl--enqueue (msg)
+  (let* ((msg-id (plist-get msg :id))
+         (dest (and msg-id (telega-dl--dest msg-id)))
+         (file (telega-dl--highres-file msg))
+         (src (telega--tl-get file :local :path)))
+    (cond
+     ((or (not msg-id) (file-exists-p dest))
+      (cl-incf telega-dl--skipped))
+     ((and src (file-exists-p src))
+      (cl-incf telega-dl--queued)
+      (telega-dl--copy msg-id src))
+     ((not file)
+      (cl-incf telega-dl--skipped)
+      (telega-dl--log "no photo on %s" msg-id))
+     (t
+      (cl-incf telega-dl--queued)
+      (push
+       `(lambda ()
+          (telega-file--download ',file
+            :priority 4
+            :update-callback
+            (lambda (dfile)
+              (telega-dl--on-downloaded dfile ,msg-id))))
+       telega-dl--pending)))))
+
+(defun telega-dl--handle-reply (reply from-id chat-id)
+  (condition-case err
+      (let* ((type (plist-get reply :@type))
+             (msgs (append (plist-get reply :messages) nil))
+             (next (or (plist-get reply :next_from_message_id) 0)))
+        (cond
+         ((equal type "error")
+          (telega-dl--log "search error %s: %s"
+                          (plist-get reply :code)
+                          (plist-get reply :message)))
+         ((null msgs)
+          (telega-dl--log "done — queued %d, skipped %d"
+                          telega-dl--queued telega-dl--skipped))
+         (t
+          (telega-dl--log "page from %s: %d photos, next %s"
+                          from-id (length msgs) next)
+          (dolist (msg msgs)
+            (telega-dl--enqueue msg))
+          (telega-dl--pump)
+          (if (and (not (zerop next)) (not (equal next from-id)))
+              (telega-dl--page next chat-id)
+            (telega-dl--log "done — queued %d, skipped %d"
+                            telega-dl--queued telega-dl--skipped)))))
+    (error
+     (telega-dl--log "lisp error: %S" err))))
+
+(defun telega-dl--page (from-id chat-id)
+  (telega-server--call
+   (list :@type "searchChatMessages"
+         :chat_id chat-id
+         :filter '(:@type "searchMessagesFilterPhoto")
+         :query ""
+         :from_message_id (or from-id 0)
+         :offset 0
+         :limit 50)
+   `(lambda (reply)
+      (telega-dl--handle-reply reply ,from-id ,chat-id))))
+
+(defun telega-download-channel-images (chat directory)
+  "Download photos from CHAT into DIRECTORY as `<message-id>.jpg'.
+Skips ids that already have a file. Progress goes to *telega-photo-download*."
+  (interactive
+   (list (or (and (boundp 'telega-chatbuf--chat) telega-chatbuf--chat)
+             (telega-completing-read-chat "Channel/chat: "))
+         (read-directory-name "Save images to: " nil nil t)))
+  (unless (and (fboundp 'telega-server-live-p) (telega-server-live-p))
+    (user-error "telega is not running"))
+  (unless (file-directory-p directory)
+    (make-directory directory t))
+  (setq telega-dl--buf (get-buffer-create "*telega-photo-download*")
+        telega-dl--dir (expand-file-name directory)
+        telega-dl--inflight 0
+        telega-dl--pending nil
+        telega-dl--queued 0
+        telega-dl--skipped 0)
+  (with-current-buffer telega-dl--buf
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert (format "Scanning %s -> %s\n"
+                      (telega-chat-title chat) telega-dl--dir))))
+  (display-buffer telega-dl--buf)
+  (telega-dl--page 0 (plist-get chat :id))
+  nil)
 
 #+end_src
 

@@ -19,6 +19,7 @@ $installFolders = @(
     #"windows"
     "git"
     "messaging"
+    "texmacs"
     #"starship"
     #"ffmpeg_ytdlp"
     #"rclone"
