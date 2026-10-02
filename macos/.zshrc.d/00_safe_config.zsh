@@ -1,5 +1,6 @@
 alias localip="ipconfig getifaddr en0"
 alias flush="dscacheutil -flushcache && killall -HUP mDNSResponder"
+alias unquarantine="xattr -r -d com.apple.quarantine"
 alias lscleanup="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user && killall Finder"
 alias show="defaults write com.apple.finder AppleShowAllFiles -bool true && killall Finder"
 alias hide="defaults write com.apple.finder AppleShowAllFiles -bool false && killall Finder"
