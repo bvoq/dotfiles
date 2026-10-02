@@ -147,6 +147,37 @@ __removesensitiveandurls() {
   sed -E -i.bak 's/([a-zA-Z0-9._]+@[a-zA-Z0-9._]+\.[a-zA-Z0-9._]+)/example@example.com/g' "$1" && rm "$1.bak"
 }
 
+cattree() {
+  local max_lines
+
+  if (( $# == 0 )); then
+    max_lines=
+  elif (( $# == 1 )) && [[ $1 == <-> ]]; then
+    max_lines=$1
+  else
+    print -u2 'usage: cattree [max_lines]'
+    return 2
+  fi
+
+  find . -type f ! -name '.DS_Store' -exec zsh -c '
+    max_lines=$1
+    shift
+
+    for f in "$@"; do
+      printf "\n--- %s ---\n" "$f"
+      if grep -Iq . -- "$f"; then
+        if [[ -n $max_lines ]]; then
+          sed -n "1,${max_lines}p" -- "$f"
+        else
+          cat -- "$f"
+        fi
+      else
+        printf "[binary file]\n"
+      fi
+    done
+  ' zsh "$max_lines" {} +
+}
+
 removesensitive() {
   local files=()
   if [ -t 0 ]; then

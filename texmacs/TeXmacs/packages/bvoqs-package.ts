@@ -5,7 +5,7 @@
 <\body>
   <\active*>
     <\src-comment>
-      User macros for documents that use this package.
+      bvoq's user comments.
     </src-comment>
   </active*>
 </body>
