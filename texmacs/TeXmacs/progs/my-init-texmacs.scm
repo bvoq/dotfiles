@@ -4,7 +4,11 @@
 
 (menu-bind cheat-sheet
   ("Alt+Up: focus up" (noop))
-  ("Alt+Down: focus down" (noop)))
+  ("Alt+Down: focus down" (noop))
+  ("Cmd+Up: bring to front" (noop))
+  ("Cmd+Down: send to back" (noop))
+  ("Cmd+Shift+Up: step forward" (noop))
+  ("Cmd+Shift+Down: step back" (noop)))
 
 (menu-bind bvoqs-files-menu
   ("my-init-texmacs.scm"
@@ -56,8 +60,19 @@
       (tree-focus u)
       (notify-change 2))))
 
+;; in-active-graphics? is private to graphics-kbd. Same test: a graphics
+;; tag, and not the preamble. False inside a text-at or math-at island.
+(define (in-draw?)
+  (and (in-graphics?) (== (get-env "preamble") "false")))
+
 (delayed
   (lazy-keyboard-force)
   (kbd-map
     ("A-up" (move-focus #f))
-    ("A-down" (move-focus #t))))
+    ("A-down" (move-focus #t)))
+  (kbd-map
+    (:mode in-draw?)
+    ("M-up" (graphics-zmove 'foreground))
+    ("M-down" (graphics-zmove 'background))
+    ("M-S-up" (graphics-zmove 'closer))
+    ("M-S-down" (graphics-zmove 'farther))))
