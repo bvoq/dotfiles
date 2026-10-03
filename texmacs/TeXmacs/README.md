@@ -20,7 +20,7 @@ A minimal text entry is `("Ctrl+G: clear selection" (noop))`. The string is the 
 
 Two files are loaded by TeXmacs itself, if they exist. They are not packages.
 
-`progs/my-init-texmacs.scm` runs once, at startup, after `init-texmacs.scm`. Keymaps, menus, and the user-icons bar go here. Built-in menus are loaded lazily, so a stock menu may not exist yet. Extend it. Do not replace it.
+`progs/my-init-texmacs.scm` runs once, at startup, after `init-texmacs.scm`. Keymaps, menus, and the user-icons bar go here. Built-in menus are loaded lazily, so a stock menu may not exist yet. So we also need to use lazy keymaps.
 
 `progs/my-init-buffer.scm` runs on every buffer, new or opened, after `init-buffer.scm`. Per-document policy only. Attach the user package to a new buffer and mark it clean, or an empty file asks to be saved:
 
@@ -44,10 +44,8 @@ This is not built-in help. It is a private mnemonic, cooked up to remember comma
 
 ```scheme
 (menu-bind cheat-sheet
-  ("Ctrl+Space twice, then again: word, then parent" (noop))
-  ("Ctrl+G: clear selection" (noop))
-  ---
-  ("Image width 0.6par, height empty: keep aspect" (noop)))
+  ("Alt+Up: focus up" (noop))
+  ("Alt+Down: focus down" (noop)))
 
 (menu-bind texmacs-extra-icons
   >>
