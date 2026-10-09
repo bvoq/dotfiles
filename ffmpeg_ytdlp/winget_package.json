@@ -10,7 +10,8 @@
       },
       "Packages": [
         { "PackageIdentifier": "yt-dlp.yt-dlp", "Scope": "machine" },
-        { "PackageIdentifier": "yt-dlp.FFmpeg", "Scope": "machine" }
+        { "PackageIdentifier": "yt-dlp.FFmpeg", "Scope": "machine" },
+        { "PackageIdentifier": "mikf.gallery-dl", "Scope": "machine" }
       ]
     }
   ]

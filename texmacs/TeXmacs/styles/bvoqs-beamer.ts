@@ -5,11 +5,12 @@
 <\body>
   <\active*>
     <\src-comment>
-      Beamer presentation with bvoq's user comments.
+      Beamer presentation with bvoq's user comments. Metal is the theme:
+      beamer pulls bluish, so metal has to come after it.
     </src-comment>
   </active*>
 
-  <use-package|beamer|bvoqs-package>
+  <use-package|beamer|metal|bvoqs-package>
 </body>
 
 <\initial>

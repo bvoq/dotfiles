@@ -12,6 +12,8 @@ function phase_3_dotfiles {
     $texmacsHome = Join-Path $env:APPDATA "TeXmacs"
     link_file (Join-Path $PSScriptRoot "TeXmacs\packages\bvoqs-package.ts") `
         (Join-Path $texmacsHome "packages\bvoqs-package.ts")
+    link_file (Join-Path $PSScriptRoot "TeXmacs\misc\images\senf.png") `
+        (Join-Path $texmacsHome "misc\images\senf.png")
     link_file (Join-Path $PSScriptRoot "TeXmacs\progs\my-init-buffer.scm") `
         (Join-Path $texmacsHome "progs\my-init-buffer.scm")
     link_file (Join-Path $PSScriptRoot "TeXmacs\progs\my-init-texmacs.scm") `

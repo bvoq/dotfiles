@@ -65,7 +65,7 @@ A pixmap has no letters. `(icon "tm_help.xpm")` is a real pixmap, and an icon-on
 
 `load-browse-buffer` opens a url and switches to it when that buffer is already open. A url that starts with `$TEXMACS_HOME_PATH` is rooted, so it is not resolved against the current document. `url-resolve` with `"r"` turns it into the file. `load-document` opens a new window when the preference is one window per buffer. The open icon is `tm_open.xpm`, the same pixmap as Load a file. Its pulldown loads `progs/my-init-texmacs.scm`, `progs/my-init-buffer.scm`, `packages/bvoqs-package.ts`, `styles/bvoqs-beamer.ts`, and `styles/bvoqs-exam.ts`.
 
-`styles/bvoqs-beamer.ts` and `styles/bvoqs-exam.ts` are principal styles. `<use-package|beamer|bvoqs-package>` and `<use-package|exam|bvoqs-package>` pull the built-in style and the package, so `has-style-package?` is true for a document that uses either style.
+`styles/bvoqs-beamer.ts` and `styles/bvoqs-exam.ts` are principal styles. `<use-package|beamer|metal|bvoqs-package>` and `<use-package|exam|bvoqs-package>` pull the built-in style and the package, so `has-style-package?` is true for a document that uses either style. `metal` comes after `beamer` because `beamer` pulls the bluish theme. `my-init-texmacs.scm` reports metal as the current beamer theme until another theme package is on the style list.
 
 Test in Insert → Session → Scheme. A session dies on quit. Keep the forms in `my-init-texmacs.scm`.
 

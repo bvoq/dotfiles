@@ -1,3 +1,4 @@
 brew "yt-dlp"
 # ffmpeg is already pulled in as a yt-dlp dependency; listed explicitly for completeness.
 brew "ffmpeg"
+brew "gallery-dl"
