@@ -193,6 +193,79 @@ function link_file {
     }
 }
 
+function Add-RazordotProfileLoader {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfilePath,
+        [Parameter(Mandatory = $true)]
+        [string]$FragmentsDir
+    )
+
+    # Write the directory razordot just filled. $PSScriptRoot is unreliable while
+    # PowerShell is dot-sourcing the profile, and the windows folder that used to
+    # own this loader is not part of the default install list.
+    $literalDir = $FragmentsDir.Replace("'", "''")
+    $loader = @"
+# razordot profiles.d
+`$razordotProfileFragmentsDir = '$literalDir'
+if (Test-Path -LiteralPath `$razordotProfileFragmentsDir -PathType Container) {
+    Get-ChildItem -LiteralPath `$razordotProfileFragmentsDir -Filter '*.ps1' -File |
+        Sort-Object Name |
+        ForEach-Object { . `$_.FullName }
+}
+"@
+
+    New-Item -ItemType Directory -Path (Split-Path -Parent $ProfilePath) -Force | Out-Null
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) {
+        [IO.File]::WriteAllText($ProfilePath, $loader.Trim() + "`r`n", $utf8)
+        return
+    }
+
+    $existing = [IO.File]::ReadAllText($ProfilePath)
+    if ($existing -match 'profiles\.d') { return }
+    [IO.File]::AppendAllText($ProfilePath, "`r`n" + $loader.Trim() + "`r`n", $utf8)
+}
+
+function Import-RazordotSessionProfile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfilePath,
+        [Parameter(Mandatory = $true)]
+        [string]$FragmentsDir
+    )
+
+    # .\razordot.ps1 runs in script scope. Dot-sourcing the profile there defines
+    # its functions only until this script returns, so load them into a module
+    # imported with -Global instead. That keeps commands such as setupnewsshkey
+    # in the interactive session.
+    $paths = @()
+    $profileLoadsFragments = $false
+    if (Test-Path -LiteralPath $ProfilePath -PathType Leaf) {
+        $paths += $ProfilePath
+        $profileLoadsFragments = [bool](Select-String -LiteralPath $ProfilePath -Pattern 'profiles\.d' -Quiet)
+    }
+    if (-not $profileLoadsFragments -and (Test-Path -LiteralPath $FragmentsDir -PathType Container)) {
+        $paths += @(
+            Get-ChildItem -LiteralPath $FragmentsDir -Filter "*.ps1" -File |
+                Sort-Object Name |
+                ForEach-Object { $_.FullName }
+        )
+    }
+    if ($paths.Count -eq 0) { return }
+
+    $module = New-Module -Name RazordotProfile -ArgumentList (, $paths) -ScriptBlock {
+        param([string[]]$LoadedPaths)
+        foreach ($loadedPath in $LoadedPaths) {
+            . $loadedPath
+        }
+        # -Alias * errors when a fragment defines no aliases, and a second
+        # Export-ModuleMember call would replace this function export.
+        Export-ModuleMember -Function *
+    }
+    Import-Module -ModuleInfo $module -Global -Force -DisableNameChecking
+}
+
 Function Set-PathVariable {
     param (
         [string]$AddPath,
@@ -760,20 +833,14 @@ foreach ($installScript in $installScripts) {
     phase_3_dotfiles
 }
 
-# Reload the profile for the post_dotfile phase
+# Reload dotfiles into this session before phase 4, and into the all-hosts
+# profile so later PowerShell windows can see them. This matches `source ~/.zshrc`.
 $profilePath = $PROFILE.CurrentUserAllHosts
 try {
-    if (Test-Path -LiteralPath $profilePath -PathType Leaf) {
-        . $profilePath
-    } else {
-        Get-ChildItem -LiteralPath $profileFragmentsDir -Filter "*.ps1" -File -ErrorAction SilentlyContinue |
-            Sort-Object Name |
-            ForEach-Object { . $_.FullName }
-    }
+    Add-RazordotProfileLoader -ProfilePath $profilePath -FragmentsDir $profileFragmentsDir
+    Import-RazordotSessionProfile -ProfilePath $profilePath -FragmentsDir $profileFragmentsDir
 } catch {
-    $failedPath = $_.InvocationInfo.ScriptName
-    if ([string]::IsNullOrWhiteSpace($failedPath)) { $failedPath = $profilePath }
-    Write-Warning "Could not reload '$failedPath': $($_.Exception.Message)"
+    Write-Warning "Could not reload '$profilePath': $($_.Exception.Message)"
 }
 
 # Phase 4: user-level setup that requires dotfiles to be in place.
