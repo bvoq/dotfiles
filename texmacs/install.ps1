@@ -24,6 +24,4 @@ function phase_3_dotfiles {
         (Join-Path $texmacsHome "styles\bvoqs-exam.ts")
     link_file (Join-Path $PSScriptRoot "TeXmacs\system\settings.scm") `
         (Join-Path $texmacsHome "system\settings.scm")
-    link_file (Join-Path $PSScriptRoot "TeXmacs\system\preferences.scm") `
-        (Join-Path $texmacsHome "system\preferences.scm")
 }

@@ -49,7 +49,10 @@ Set-PSReadlineKeyHandler -Key DownArrow -Function HistorySearchForward
 
 # TODO set your own host
 # Write-Host "`e]0;$PWD`a" -NoNewLine
-Clear-Host
+# razordot.ps1 dot-sources this profile after phase 3. Leave the installer log on screen.
+if (-not $global:RAZORDOT_RUN_ID) {
+    Clear-Host
+}
 
 # Enable this if you use Flutter in China.
 # $env:FLUTTER_STORAGE_BASE_URL='https://storage.flutter-io.cn'
@@ -57,7 +60,9 @@ Clear-Host
 
 
 # zoxide
-Invoke-Expression (& { (zoxide init powershell | Out-String) })
+if (Get-Command zoxide -ErrorAction SilentlyContinue) {
+    Invoke-Expression (& { (zoxide init powershell | Out-String) })
+}
 
 # Per-folder setup scripts can install persistent profile fragments here.
 $profileFragmentsDir = Join-Path $PSScriptRoot "profiles.d"
@@ -68,5 +73,7 @@ if (Test-Path -LiteralPath $profileFragmentsDir -PathType Container) {
 }
 
 # fnm (Fast Node Manager)
-fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+if (Get-Command fnm -ErrorAction SilentlyContinue) {
+    fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+}
 

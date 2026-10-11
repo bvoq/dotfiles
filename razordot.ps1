@@ -18,6 +18,7 @@ $installFolders = @(
     #"generic"
     #"windows"
     "git"
+    "ssh"
     "messaging"
     "texmacs"
     #"starship"
@@ -757,6 +758,25 @@ foreach ($installScript in $installScripts) {
     function phase_3_dotfiles {}
     . $installScript
     phase_3_dotfiles
+}
+
+# Reload the all-hosts profile into this session so phase 4 sees the dotfiles
+# just installed. This matches `source ~/.zshrc` in razordot.zsh.
+# windows/profile.ps1 is that profile when the windows folder is enabled, and
+# it dot-sources profiles.d. Load the fragments directly when it is absent.
+$profilePath = $PROFILE.CurrentUserAllHosts
+try {
+    if (Test-Path -LiteralPath $profilePath -PathType Leaf) {
+        . $profilePath
+    } else {
+        Get-ChildItem -LiteralPath $profileFragmentsDir -Filter "*.ps1" -File -ErrorAction SilentlyContinue |
+            Sort-Object Name |
+            ForEach-Object { . $_.FullName }
+    }
+} catch {
+    $failedPath = $_.InvocationInfo.ScriptName
+    if ([string]::IsNullOrWhiteSpace($failedPath)) { $failedPath = $profilePath }
+    Write-Warning "Could not reload '$failedPath': $($_.Exception.Message)"
 }
 
 # Phase 4: user-level setup that requires dotfiles to be in place.
