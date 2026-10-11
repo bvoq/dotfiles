@@ -760,10 +760,7 @@ foreach ($installScript in $installScripts) {
     phase_3_dotfiles
 }
 
-# Reload the all-hosts profile into this session so phase 4 sees the dotfiles
-# just installed. This matches `source ~/.zshrc` in razordot.zsh.
-# windows/profile.ps1 is that profile when the windows folder is enabled, and
-# it dot-sources profiles.d. Load the fragments directly when it is absent.
+# Reload the profile for the post_dotfile phase
 $profilePath = $PROFILE.CurrentUserAllHosts
 try {
     if (Test-Path -LiteralPath $profilePath -PathType Leaf) {
