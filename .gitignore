@@ -3,3 +3,5 @@ backups/
 # razordot.zsh brew/ https://github.com/razordot/brew.git 891203140013d2cce740b86398841f687aa43382
 brew/
 nvim.log
+# razordot.ps1 winget/ https://github.com/razordot/winget.git b38a91289852f14a45a302f7a3b31a824d00ab58
+winget/
