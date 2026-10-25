@@ -5,10 +5,15 @@ SPC h c <keybinding> = M-x describe-key-briefly <keybinding> = will tell you min
 C-h f <function> RET = will give you the documentation of a function
 C-h v <variable> RET = will tell you the value of a variable
 
+S-m-a-<cmd> = anki commands
+
 
 M-x = SPC : = run elisp command
 
 SPC . = open file
+
+
+SPC i e = insert emoji
 
 Neat:
 SPC t l = rotate through line number settings, relative -> t -> relative -> nil

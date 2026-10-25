@@ -7,4 +7,5 @@ cask "daisydisk"  # Note: I have a license for this.
 cask "devcleaner"
 cask "keka"
 cask "paintbrush"
+cask "selfcontrol"
 cask "vlc"
