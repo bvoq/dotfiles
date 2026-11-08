@@ -104,6 +104,77 @@ librewolf_sync_policies() {
   xattr -dr com.apple.quarantine "$app"
 }
 
+# Unhook stores its toggles in Firefox storage.sync (storage-sync-v2.sqlite),
+# keyed by the extension id. Write the dotfiles copy into each profile whose
+# stored JSON differs. Quit LibreWolf first so it does not overwrite the file.
+librewolf_apply_unhook_settings() {
+  local src="librewolf/unhook-settings.json"
+  local profiles_root="${1:-$HOME/Library/Application Support/LibreWolf/Profiles}"
+  [[ -f $src ]] || {
+    echo "Missing $src" >&2
+    return 1
+  }
+  [[ -d $profiles_root ]] || return 0
+  python3 - "$src" "$profiles_root" << 'PY'
+import json
+import sqlite3
+import sys
+from pathlib import Path
+
+extension_id = "myallychou@gmail.com"
+source = Path(sys.argv[1])
+profiles_root = Path(sys.argv[2])
+desired = json.loads(source.read_text())
+payload = json.dumps(desired, separators=(",", ":"))
+failed = False
+
+for profile in sorted(path for path in profiles_root.iterdir() if path.is_dir()):
+    database = profile / "storage-sync-v2.sqlite"
+    if not database.is_file():
+        continue
+    try:
+        connection = sqlite3.connect(database, timeout=2)
+        connection.execute("PRAGMA busy_timeout=2000")
+        row = connection.execute(
+            "SELECT data FROM storage_sync_data WHERE ext_id = ?",
+            (extension_id,),
+        ).fetchone()
+        current = json.loads(row[0]) if row and row[0] else None
+        if current == desired:
+            connection.close()
+            continue
+        if row:
+            connection.execute(
+                """
+                UPDATE storage_sync_data
+                SET data = ?, sync_change_counter = sync_change_counter + 1
+                WHERE ext_id = ?
+                """,
+                (payload, extension_id),
+            )
+        else:
+            connection.execute(
+                """
+                INSERT INTO storage_sync_data (ext_id, data, sync_change_counter)
+                VALUES (?, ?, 1)
+                """,
+                (extension_id, payload),
+            )
+        connection.commit()
+        connection.close()
+        print(f"Updated Unhook settings in {profile.name}")
+    except sqlite3.OperationalError as error:
+        failed = True
+        print(f"Could not update Unhook settings in {profile.name}: {error}", file=sys.stderr)
+
+sys.exit(1 if failed else 0)
+PY
+}
+
+phase_2_user_installs() {
+  librewolf_apply_unhook_settings
+}
+
 phase_1_admin_installs() {
   local url latest_version installed_version app="/Applications/LibreWolf.app"
 
