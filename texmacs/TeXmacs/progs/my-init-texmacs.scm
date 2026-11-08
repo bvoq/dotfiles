@@ -9,7 +9,8 @@
   ("Cmd+Down: send to back" (noop))
   ("Cmd+Shift+Up: step forward" (noop))
   ("Cmd+Shift+Down: step back" (noop))
-  ("Cmd+Alt+V: unformatted paste" (noop)))
+  ("Cmd+Alt+V: unformatted paste" (noop))
+  ("Cmd+Alt+S: toggle source mode" (noop))
 
 (menu-bind bvoqs-files-menu
   ("my-init-texmacs.scm"

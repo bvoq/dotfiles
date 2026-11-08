@@ -24,7 +24,7 @@ install_folders=(
   grok
   microsoft-office
   git
-  iterm
+  #iterm
   librewolf
   localai
   lowlevel

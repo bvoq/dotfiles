@@ -196,6 +196,54 @@ removesensitive() {
   done
 }
 
+# Return 0 when every directory is safe to use as a workspace.
+# Return 1 after printing a reason when any directory is sensitive.
+# With no arguments, check $PWD.
+# Sensitive: a path component named "private", $HOME or any parent of it,
+# or ~/Documents and anything under it.
+sensitive_guard() {
+  local dir part physical home docs
+  local -a dirs parts
+  if (( $# == 0 )); then
+    dirs=("$PWD")
+  else
+    dirs=("$@")
+  fi
+  home=${HOME:P}
+  docs=${home}/Documents
+  if [[ -d $docs ]]; then
+    docs=${docs:P}
+  else
+    docs=
+  fi
+  for dir in "${dirs[@]}"; do
+    parts=("${(@s:/:)dir}")
+    for part in "${parts[@]}"; do
+      if [[ ${(L)part} == private ]]; then
+        print -ru2 -- "sensitive_guard: refusing ${dir} (paths containing private are blocked)"
+        return 1
+      fi
+    done
+    physical=${dir:P}
+    parts=("${(@s:/:)physical}")
+    for part in "${parts[@]}"; do
+      if [[ ${(L)part} == private ]]; then
+        print -ru2 -- "sensitive_guard: refusing ${physical} (paths containing private are blocked)"
+        return 1
+      fi
+    done
+    if [[ $physical == / || $physical == $home || ${home#$physical/} != $home ]]; then
+      print -ru2 -- "sensitive_guard: refusing ${physical} (home directory or above)"
+      return 1
+    fi
+    if [[ -n $docs && ( $physical == $docs || ${physical#$docs/} != $physical ) ]]; then
+      print -ru2 -- "sensitive_guard: refusing ${physical} (Documents or a subdirectory)"
+      return 1
+    fi
+  done
+  return 0
+}
+
 flatten_folder() {
   # Default values:
   local comment="#"
