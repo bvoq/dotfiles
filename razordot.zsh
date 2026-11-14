@@ -16,7 +16,7 @@ install_folders=(
   # crypto
   # csharp
   # devops
-  emacs
+  #emacs (until bug on golden gate is resolved)
   ffmpeg_ytdlp
   #formal
   generic
