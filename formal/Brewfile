@@ -1,7 +1,7 @@
 brew "eprover"
 brew "spin"
 
-cask "tla-plus-toolbox"
+cask "tla+-toolbox"
 
 # special: psisolver requires its own tap; trust it so non-interactive bootstrap isn't blocked
 tap "bvoq/bvoq", trusted: true

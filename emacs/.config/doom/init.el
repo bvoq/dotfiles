@@ -1,5 +1,17 @@
 ;;; init.el -*- lexical-binding: t; -*-
 
+;; Workaround for Emacs native-comp on macOS 27+ (Golden Gate).
+;; Older libgccjit miscalculates the deployment target as
+;; (Darwin version - 9) and emits the invalid flag -mmacosx-version-min=18.0.
+;; See https://github.com/caldwell/build-emacs/issues/158
+;; and https://github.com/jimeh/emacs-builds/issues/71.
+;; Delete this once your Emacs build ships a fixed libgccjit.
+(when (and (eq system-type 'darwin)
+           (string-match "darwin\\([0-9]+\\)" system-configuration)
+           (>= (string-to-number (match-string 1 system-configuration)) 27))
+  (require 'comp)
+  (add-to-list 'native-comp-driver-options "-mmacosx-version-min=27.0"))
+
 ;; This file controls what Doom modules are enabled and what order they load
 ;; in. Remember to run 'doom sync' after modifying it!
 
