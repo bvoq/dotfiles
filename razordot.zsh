@@ -31,6 +31,7 @@ install_folders=(
   macos
   messaging
   #mobile
+  music
   nvim
   quarto
   rclone

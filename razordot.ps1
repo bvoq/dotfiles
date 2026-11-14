@@ -20,6 +20,7 @@ $installFolders = @(
     "git"
     "ssh"
     "messaging"
+    "music"
     "texmacs"
     #"starship"
     #"ffmpeg_ytdlp"
