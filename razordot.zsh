@@ -18,7 +18,7 @@ install_folders=(
   # devops
   emacs
   ffmpeg_ytdlp
-  formal
+  #formal
   generic
   generic-cask
   grok
