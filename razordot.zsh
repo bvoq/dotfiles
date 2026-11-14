@@ -22,7 +22,7 @@ install_folders=(
   generic
   generic-cask
   grok
-  microsoft-office
+  #microsoft-office
   git
   #iterm
   librewolf
