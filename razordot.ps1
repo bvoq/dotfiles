@@ -15,6 +15,7 @@ $installFolders = @(
     "razordot/winget"
     #"core"
     "creative"
+    "fonts"
     #"generic"
     #"windows"
     "git"

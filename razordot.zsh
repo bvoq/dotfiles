@@ -19,6 +19,7 @@ install_folders=(
   #emacs (until bug on golden gate is resolved)
   ffmpeg_ytdlp
   #formal
+  fonts
   generic
   generic-cask
   grok
