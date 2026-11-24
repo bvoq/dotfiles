@@ -158,24 +158,44 @@
         (else "false")))
 
 (define (inactive-star? t) (tree-is? t 'inactive*))
+;; (define (focus-source-toggle)
+;;   (let ((w (tree-innermost inactive-star? #t)))
+;;     (if w
+;;         ;; unwrap: w now holds the former child, so focus it
+;;         (begin
+;;           (tree-remove-node! w 0)
+;;           (tree-focus w)
+;;           (notify-change 2))
+;;         ;; wrap: find the new wrapper again and focus it
+;;         (and-with t (focus-tree)
+;;           (let ((rel (tree-cursor-path t)))
+;;             (tree-insert-node! t 0 '(inactive*))
+;;             (if (list? rel)
+;;                 (apply tree-go-to (cons* t 0 rel))
+;;                 (tree-go-to t 0 :start))
+;;             (and-with n (tree-innermost inactive-star? #t)
+;;               (tree-focus n))
+;;             (notify-change 2))))))
+
 (define (focus-source-toggle)
   (let ((w (tree-innermost inactive-star? #t)))
     (if w
-        ;; unwrap: w now holds the former child, so focus it
         (begin
           (tree-remove-node! w 0)
           (tree-focus w)
           (notify-change 2))
-        ;; wrap: find the new wrapper again and focus it
         (and-with t (focus-tree)
-          (let ((rel (tree-cursor-path t)))
-            (tree-insert-node! t 0 '(inactive*))
-            (if (list? rel)
-                (apply tree-go-to (cons* t 0 rel))
-                (tree-go-to t 0 :start))
-            (and-with n (tree-innermost inactive-star? #t)
-              (tree-focus n))
-            (notify-change 2))))))
+          (if (or (not (tree-compound? t)) (focus-skip? t))
+              (set-message "No focused tag to show as source" "source")
+              (let ((rel (tree-cursor-path t)))
+                (tree-insert-node! t 0 '(inactive*))
+                (if (list? rel)
+                    (apply tree-go-to (cons* t 0 rel))
+                    (tree-go-to t 0 :start))
+                (and-with n (tree-innermost inactive-star? #t)
+                  (tree-focus n))
+                (notify-change 2)))))))
+
 
 
 ;; (kbd-map ("M-A-s" (focus-source-toggle)))
