@@ -1,4 +1,4 @@
-;; New documents use the bvoqs package. Existing files keep their own style list.
-(when (buffer-newly-created? (current-buffer))
+;; New, unnamed documents use the bvoqs package.
+(when (not (buffer-has-name? (current-buffer)))
   (add-style-package "bvoqs-package")
-  (buffer-pretend-saved (current-buffer)))
+    (buffer-pretend-saved (current-buffer)))

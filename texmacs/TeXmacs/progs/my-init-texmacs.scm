@@ -10,7 +10,9 @@
   ("Cmd+Shift+Up: step forward" (noop))
   ("Cmd+Shift+Down: step back" (noop))
   ("Cmd+Alt+V: unformatted paste" (noop))
-  ("Cmd+Alt+S: toggle source mode" (noop))
+  ("Cmd+Alt+s: toggle source mode everywhere" (noop))
+  ("Cmd+Alt+S: toggle source mode locally" (noop))
+  )
 
 (menu-bind bvoqs-files-menu
   ("my-init-texmacs.scm"
@@ -155,6 +157,29 @@
                      (bvoqs-senf-leading? c))))))
         (else "false")))
 
+(define (inactive-star? t) (tree-is? t 'inactive*))
+(define (focus-source-toggle)
+  (let ((w (tree-innermost inactive-star? #t)))
+    (if w
+        ;; unwrap: w now holds the former child, so focus it
+        (begin
+          (tree-remove-node! w 0)
+          (tree-focus w)
+          (notify-change 2))
+        ;; wrap: find the new wrapper again and focus it
+        (and-with t (focus-tree)
+          (let ((rel (tree-cursor-path t)))
+            (tree-insert-node! t 0 '(inactive*))
+            (if (list? rel)
+                (apply tree-go-to (cons* t 0 rel))
+                (tree-go-to t 0 :start))
+            (and-with n (tree-innermost inactive-star? #t)
+              (tree-focus n))
+            (notify-change 2))))))
+
+
+;; (kbd-map ("M-A-s" (focus-source-toggle)))
+
 ;; In-draw mode for keybindings
 (define (in-draw?)
   (and (in-graphics?) (== (get-env "preamble") "false")))
@@ -165,7 +190,8 @@
     ("A-up" (move-focus #f))
     ("A-down" (move-focus #t)))
   (kbd-map
-    ("M-A-v" (clipboard-paste-import "verbatim" "primary")))
+    ("M-A-v" (clipboard-paste-import "verbatim" "primary"))
+    ("M-A-S" (focus-source-toggle)))
   (kbd-map
     (:mode in-draw?)
     ("M-up" (graphics-zmove 'foreground))
