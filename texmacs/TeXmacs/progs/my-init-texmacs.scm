@@ -11,7 +11,7 @@
   ("Cmd+Shift+Down: step back" (noop))
   ("Cmd+Alt+V: unformatted paste" (noop))
   ("Cmd+Alt+s: toggle source mode everywhere" (noop))
-  ("Cmd+Alt+S: toggle source mode locally" (noop))
+  ("Alt+s: toggle source mode locally" (noop))
   )
 
 (menu-bind bvoqs-files-menu
@@ -191,7 +191,7 @@
     ("A-down" (move-focus #t)))
   (kbd-map
     ("M-A-v" (clipboard-paste-import "verbatim" "primary"))
-    ("M-A-S" (focus-source-toggle)))
+    ("A-s" (focus-source-toggle)))
   (kbd-map
     (:mode in-draw?)
     ("M-up" (graphics-zmove 'foreground))
